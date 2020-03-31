@@ -123,7 +123,8 @@ class Top2Vec:
         self.topic_word_scores = []
 
         unique_labels = list(set(cluster_labels))
-        unique_labels.remove(-1)
+        if -1 in unique_labels:
+            unique_labels.remove(-1)
 
         for label in unique_labels:
 
@@ -532,4 +533,3 @@ class Top2Vec:
         plt.imshow(
             WordCloud(width=1600, height=400, background_color=background_color).generate_from_frequencies(word_score_dict));
         plt.title("Topic " + str(topic_num), loc='left', fontsize=25, pad=20)
-
