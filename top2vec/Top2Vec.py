@@ -1,6 +1,10 @@
 # Author: Dimo Angelov
 #
 # License: BSD 3 clause
+
+import sys
+import time
+
 import numpy
 import pandas
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
@@ -96,11 +100,16 @@ class Top2Vec:
 
         self.documents = documents
 
-        # preprocess documents for training - tokenize and remove too long/short words
+
+        sys.stdout.write('Preprocess documents...')
+        tstart = time.perf_counter()
         train_corpus = [TaggedDocument(simple_preprocess(strip_tags(doc), deacc=True), [i])
                         for i, doc in enumerate(documents)]
+        tend = time.perf_counter()
+        print('%fs elapsed.' % (tend-tstart))
 
-        # create documents and word embeddings with doc2vec
+        sys.stdout.write('Embed documents...')
+        tstart = time.perf_counter()
         if workers is None:
             self.model = Doc2Vec(documents=train_corpus, vector_size=vector_size, min_count=min_count, window=window,
                                  sample=1e-5, negative=negative, hs=hs, epochs=epochs, dm=0,
@@ -109,24 +118,32 @@ class Top2Vec:
             self.model = Doc2Vec(documents=train_corpus, vector_size=vector_size, min_count=min_count, window=window,
                                  sample=1e-5, negative=negative, hs=hs, workers=workers, epochs=epochs, dm=0,
                                  dbow_words=1)
+        tend = time.perf_counter()
+        print('%fs elapsed.' % (tend-tstart))
 
         # create 5D embeddings of documents
         docvecs = numpy.vstack([self.model.docvecs[i] for i in range(self.model.docvecs.count)])
-
         self.rawdf = pandas.DataFrame(docvecs)
 
+        sys.stdout.write('Compute UMAP...')
+        tstart = time.perf_counter()
         self.umap_model = umap.UMAP(n_neighbors=n_neighbors,
                                     n_components=n_components,
                                     min_dist=min_dist,
                                     metric='cosine') \
                               .fit_transform(self.rawdf)
+        tend = time.perf_counter()
+        print('%fs elapsed.' % (tend-tstart))
 
-        # find dense areas of document vectors
+        sys.stdout.write('Detect clusters...')
+        tstart = time.perf_counter()
         self.clusters = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size,
                                         min_samples=min_samples,
                                         metric='euclidean',
                                         cluster_selection_method='eom') \
                                .fit_predict(self.umap_model)
+        tend = time.perf_counter()
+        print('%fs elapsed.' % (tend-tstart))
 
         cluster_labels = pandas.Series(self.clusters)
 
@@ -142,7 +159,7 @@ class Top2Vec:
         for label in unique_labels:
 
             # find centroid of dense document cluster
-            topic_vector = [0] * 300
+            topic_vector = [0] * vector_size
             cluster_vec_indices = cluster_labels[cluster_labels == label].index.tolist()
             for vec_index in cluster_vec_indices:
                 topic_vector = topic_vector + self.model.docvecs[vec_index]
