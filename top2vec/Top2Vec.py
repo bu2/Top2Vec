@@ -1,8 +1,8 @@
 # Author: Dimo Angelov
 #
 # License: BSD 3 clause
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.utils import simple_preprocess
 from gensim.parsing.preprocessing import strip_tags
@@ -46,7 +46,10 @@ class Top2Vec:
     -------
     """
 
-    def __init__(self, documents, speed="fast-learn", workers=None):
+    def __init__(self, documents, speed="fast-learn", workers=None,
+                 vector_size=100, min_count=5, window=5,
+                 n_components=5, n_neighbors=5, min_dist=1.0,
+                 min_cluster_size=30, min_samples=None):
         """
         Parameters
         ----------
@@ -99,23 +102,33 @@ class Top2Vec:
 
         # create documents and word embeddings with doc2vec
         if workers is None:
-            self.model = Doc2Vec(documents=train_corpus, vector_size=300, min_count=50, window=15,
+            self.model = Doc2Vec(documents=train_corpus, vector_size=vector_size, min_count=min_count, window=window,
                                  sample=1e-5, negative=negative, hs=hs, epochs=epochs, dm=0,
                                  dbow_words=1)
         else:
-            self.model = Doc2Vec(documents=train_corpus, vector_size=300, min_count=50, window=15,
+            self.model = Doc2Vec(documents=train_corpus, vector_size=vector_size, min_count=min_count, window=window,
                                  sample=1e-5, negative=negative, hs=hs, workers=workers, epochs=epochs, dm=0,
                                  dbow_words=1)
 
         # create 5D embeddings of documents
-        docvecs = np.vstack([self.model.docvecs[i] for i in range(self.model.docvecs.count)])
-        umap_model = umap.UMAP(n_neighbors=15, n_components=5, metric='cosine').fit(docvecs)
+        docvecs = numpy.vstack([self.model.docvecs[i] for i in range(self.model.docvecs.count)])
+
+        self.rawdf = pandas.DataFrame(docvecs)
+
+        self.umap_model = umap.UMAP(n_neighbors=n_neighbors,
+                                    n_components=n_components,
+                                    min_dist=min_dist,
+                                    metric='cosine') \
+                              .fit_transform(self.rawdf)
 
         # find dense areas of document vectors
-        cluster = hdbscan.HDBSCAN(min_cluster_size=15, metric='euclidean', cluster_selection_method='eom').fit(
-            umap_model.embedding_)
+        self.cluster = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size,
+                                       min_samples=min_samples,
+                                       metric='euclidean',
+                                       cluster_selection_method='eom') \
+                              .fit_predict(self.umap_model.embedding_)
 
-        cluster_labels = pd.Series(cluster.labels_)
+        cluster_labels = pandas.Series(self.cluster.labels_)
 
         # generate topic vectors from dense areas of documents
         self.topic_vectors = []
