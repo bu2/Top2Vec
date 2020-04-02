@@ -466,7 +466,7 @@ class Top2Vec:
         combined_vector /= (len(word_vecs) + len(neg_word_vecs))
 
         topic_ranks = [topic[0] for topic in cosine_similarity(self.topic_vectors, combined_vector.reshape(1, -1))]
-        topic_nums = list(np.argsort(topic_ranks)[-num_topics:])
+        topic_nums = list(numpy.argsort(topic_ranks)[-num_topics:])
         topic_nums.reverse()
 
         topic_words = [self.topic_words[topic] for topic in topic_nums]
