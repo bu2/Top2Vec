@@ -99,7 +99,7 @@ class Top2Vec:
             raise ValueError("workers needs to be an int")
 
         self.documents = documents
-
+        self.vector_size = vector_size
 
         sys.stdout.write('Preprocess documents...')
         tstart = time.perf_counter()
@@ -111,11 +111,11 @@ class Top2Vec:
         sys.stdout.write('Embed documents...')
         tstart = time.perf_counter()
         if workers is None:
-            self.model = Doc2Vec(documents=train_corpus, vector_size=vector_size, min_count=min_count, window=window,
+            self.model = Doc2Vec(documents=train_corpus, vector_size=self.vector_size, min_count=min_count, window=window,
                                  sample=1e-5, negative=negative, hs=hs, epochs=epochs, dm=0,
                                  dbow_words=1)
         else:
-            self.model = Doc2Vec(documents=train_corpus, vector_size=vector_size, min_count=min_count, window=window,
+            self.model = Doc2Vec(documents=train_corpus, vector_size=self.vector_size, min_count=min_count, window=window,
                                  sample=1e-5, negative=negative, hs=hs, workers=workers, epochs=epochs, dm=0,
                                  dbow_words=1)
         tend = time.perf_counter()
@@ -159,7 +159,7 @@ class Top2Vec:
         for label in unique_labels:
 
             # find centroid of dense document cluster
-            topic_vector = [0] * vector_size
+            topic_vector = [0] * self.vector_size
             cluster_vec_indices = cluster_labels[cluster_labels == label].index.tolist()
             for vec_index in cluster_vec_indices:
                 topic_vector = topic_vector + self.model.docvecs[vec_index]
@@ -472,7 +472,7 @@ class Top2Vec:
         word_vecs = [self.model[word] for word in keywords]
         neg_word_vecs = [self.model[word] for word in keywords_neg]
 
-        combined_vector = [0] * 300
+        combined_vector = [0] * self.vector_size
 
         for word_vec in word_vecs:
             combined_vector += word_vec
