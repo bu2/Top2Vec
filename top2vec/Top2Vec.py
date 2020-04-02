@@ -49,7 +49,7 @@ class Top2Vec:
     def __init__(self, documents, speed="fast-learn", workers=None,
                  vector_size=100, min_count=5, window=5,
                  n_components=5, n_neighbors=5, min_dist=1.0,
-                 min_cluster_size=30, min_samples=None):
+                 min_cluster_size=15, min_samples=None):
         """
         Parameters
         ----------
@@ -122,13 +122,13 @@ class Top2Vec:
                               .fit_transform(self.rawdf)
 
         # find dense areas of document vectors
-        self.cluster = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size,
-                                       min_samples=min_samples,
-                                       metric='euclidean',
-                                       cluster_selection_method='eom') \
-                              .fit_predict(self.umap_model.embedding_)
+        self.clusters = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size,
+                                        min_samples=min_samples,
+                                        metric='euclidean',
+                                        cluster_selection_method='eom') \
+                               .fit_predict(self.umap_model)
 
-        cluster_labels = pandas.Series(self.cluster.labels_)
+        cluster_labels = pandas.Series(self.clusters)
 
         # generate topic vectors from dense areas of documents
         self.topic_vectors = []
