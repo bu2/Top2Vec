@@ -13,6 +13,7 @@ from gensim.parsing.preprocessing import strip_tags
 import umap
 import hdbscan
 from operator import itemgetter
+from sklearn.decomposition import PCA
 from sklearn.metrics.pairwise import cosine_similarity
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
@@ -52,7 +53,8 @@ class Top2Vec:
 
     def __init__(self, documents, speed="fast-learn", workers=None,
                  vector_size=100, min_count=5, window=5,
-                 n_components=5, n_neighbors=5, min_dist=1.0,
+                 pca_components=None,
+                 umap_components=5, n_neighbors=5, min_dist=1.0,
                  min_cluster_size=15, min_samples=None):
         """
         Parameters
@@ -125,13 +127,20 @@ class Top2Vec:
         docvecs = numpy.vstack([self.model.docvecs[i] for i in range(self.model.docvecs.count)])
         self.rawdf = pandas.DataFrame(docvecs)
 
+        sys.stdout.write('Compute PCA...')
+        tstart = time.perf_counter()
+        pca = PCA(n_components=pca_components)
+        self.pcadf = pandas.DataFrame(pca.fit_transform(self.rawdf))
+        tend = time.perf_counter()
+        print('%fs elapsed.' % (tend-tstart))
+
         sys.stdout.write('Compute UMAP...')
         tstart = time.perf_counter()
-        self.umap_model = umap.UMAP(n_neighbors=n_neighbors,
-                                    n_components=n_components,
-                                    min_dist=min_dist,
-                                    metric='cosine') \
-                              .fit_transform(self.rawdf)
+        self.umapdf = pandas.DataFrame(umap.UMAP(n_neighbors=n_neighbors,
+                                                 n_components=umap_components,
+                                                 min_dist=min_dist,
+                                                 metric='cosine')
+                                           .fit_transform(self.pcadf))
         tend = time.perf_counter()
         print('%fs elapsed.' % (tend-tstart))
 
@@ -141,7 +150,7 @@ class Top2Vec:
                                         min_samples=min_samples,
                                         metric='euclidean',
                                         cluster_selection_method='eom') \
-                               .fit_predict(self.umap_model)
+                               .fit_predict(self.umapdf)
         tend = time.perf_counter()
         print('%fs elapsed.' % (tend-tstart))
 
